@@ -1,0 +1,121 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GreenShip V1.5 实时能源评价平台</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <main class="shell">
+    <section class="hero">
+      <div>
+        <p class="eyebrow">GreenShip V1.5</p>
+        <h1>实时能源价格 + 手动船舶参数评价平台</h1>
+        <p class="hero-copy">柴油、电价和岸电价格实时模拟刷新，航行参数由用户手动输入，系统自动比较柴油、纯电和混合动力方案。</p>
+      </div>
+      <div class="status-pill">实时模拟运行中</div>
+    </section>
+
+    <section class="price-band" aria-label="实时能源价格">
+      <div class="section-title">
+        <h2>实时能源价格</h2>
+        <span>更新时间：<strong id="updated-at">{{ result.prices.updated_at }}</strong></span>
+      </div>
+      <div class="price-grid">
+        <article class="price-card">
+          <span>柴油价格</span>
+          <strong><span id="diesel-price">{{ "%.2f"|format(result.prices.diesel) }}</span> 元/L</strong>
+        </article>
+        <article class="price-card">
+          <span>工业电价</span>
+          <strong><span id="industrial-price">{{ "%.2f"|format(result.prices.industrial_power) }}</span> 元/kWh</strong>
+        </article>
+        <article class="price-card">
+          <span>岸电价格</span>
+          <strong><span id="shore-price">{{ "%.2f"|format(result.prices.shore_power) }}</span> 元/kWh</strong>
+        </article>
+      </div>
+    </section>
+
+    <section class="workspace">
+      <form method="post" class="panel input-panel">
+        <div class="section-title">
+          <h2>船舶与航行参数</h2>
+          <span>手动输入</span>
+        </div>
+
+        <label>船舶类型
+          <input name="ship_type" value="{{ result.inputs.ship_type }}">
+        </label>
+        <label>航程 km
+          <input type="number" step="0.1" name="distance" value="{{ result.inputs.distance }}">
+        </label>
+        <label>航速 km/h
+          <input type="number" step="0.1" name="speed" value="{{ result.inputs.speed }}">
+        </label>
+        <label>推进功率 kW
+          <input type="number" step="0.1" name="power" value="{{ result.inputs.power }}">
+        </label>
+        <label>电池容量 kWh
+          <input type="number" step="0.1" name="battery_capacity" value="{{ result.inputs.battery_capacity }}">
+        </label>
+        <label>柴油油耗 L/km
+          <input type="number" step="0.1" name="diesel_consumption" value="{{ result.inputs.diesel_consumption }}">
+        </label>
+        <label>混合动力柴油比例 %
+          <input type="number" step="1" min="0" max="100" name="hybrid_diesel_ratio" value="{{ result.inputs.hybrid_diesel_ratio }}">
+        </label>
+        <button type="submit">重新计算方案</button>
+      </form>
+
+      <section class="panel results-panel">
+        <div class="section-title">
+          <h2>能源方案比较</h2>
+          <span>预计航行 {{ "%.1f"|format(result.inputs.voyage_hours) }} 小时</span>
+        </div>
+
+        <div class="result-table">
+          <div class="table-row table-head">
+            <span>方案</span>
+            <span>能源消耗</span>
+            <span>成本</span>
+            <span>CO2</span>
+          </div>
+          {% for option in result.options %}
+          <div class="table-row">
+            <span>{{ option.name }}</span>
+            <span>{{ option.energy }}</span>
+            <span>{{ "%.0f"|format(option.cost) }} 元</span>
+            <span>{{ "%.0f"|format(option.carbon) }} kg</span>
+          </div>
+          {% endfor %}
+        </div>
+
+        <div class="recommendation">
+          <p>推荐方案</p>
+          <h3>{{ result.best.name }}</h3>
+          <div class="metrics">
+            <span>绿色指数 {{ result.best.score }} 分</span>
+            <span>成本降低 {{ "%.1f"|format(result.cost_saving) }}%</span>
+            <span>碳排降低 {{ "%.1f"|format(result.carbon_saving) }}%</span>
+          </div>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    async function refreshPrices() {
+      const response = await fetch("/api/prices");
+      const prices = await response.json();
+      document.getElementById("diesel-price").textContent = prices.diesel.toFixed(2);
+      document.getElementById("industrial-price").textContent = prices.industrial_power.toFixed(2);
+      document.getElementById("shore-price").textContent = prices.shore_power.toFixed(2);
+      document.getElementById("updated-at").textContent = prices.updated_at;
+    }
+
+    setInterval(refreshPrices, 5000);
+  </script>
+</body>
+</html>
